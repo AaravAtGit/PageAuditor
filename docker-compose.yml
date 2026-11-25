@@ -25,8 +25,8 @@ services:
 
   backend:
     build: ./backend
+    env_file: backend/.env
     environment:
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       DATABASE_URL: postgresql+asyncpg://aeo:aeo@postgres:5432/aeo
       REDIS_URL: redis://redis:6379/0
       CORS_ORIGINS: '["http://localhost:3000"]'
