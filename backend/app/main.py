@@ -1,173 +1,92 @@
-"""FastAPI app: POST /audits, GET /audits, GET /audits/{id}."""
+"""API: POST /audits, GET /audits, GET /audits/{id}."""
 
-import asyncio
-import logging
 import time
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from sqlalchemy import func, select, text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app import cache
-from app.config import get_settings
-from app.db import Audit, get_session, init_db
+from app.config import settings
+from app.db import Audit, Session, create_tables
 from app.extractor import extract_signals
-from app.fetcher import FetchError, fetch_page
+from app.fetcher import FetchError, fetch_html
 from app.llm import LLMError, score_page
-from app.schemas import AuditCreate, AuditDetail, AuditList, AuditSummary
-
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger("aeo")
+from app.schemas import AuditListItem, AuditOut, AuditRequest
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
+    await create_tables()
     yield
 
 
-app = FastAPI(title="AEO Page Auditor", version="0.1.0", lifespan=lifespan)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=get_settings().cors_origins,
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
-)
+app = FastAPI(title="AEO Page Auditor", lifespan=lifespan)
+app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_methods=["*"], allow_headers=["*"])
 
 
-def _error(status: int, code: str, message: str, headers: dict | None = None) -> HTTPException:
-    return HTTPException(status_code=status, detail={"code": code, "message": message}, headers=headers)
+def to_out(audit: Audit, cached: bool = False) -> AuditOut:
+    out = AuditOut.model_validate(audit, from_attributes=True)  # DB row -> response model
+    out.cached = cached
+    return out
 
 
-def _to_detail(audit: Audit, cached: bool = False) -> AuditDetail:
-    return AuditDetail(
-        id=audit.id,
-        url=audit.url,
-        final_url=audit.final_url,
-        overall_score=audit.overall_score,
-        model=audit.model,
-        created_at=audit.created_at,
-        signals=audit.signals,
-        report=audit.report,
-        input_tokens=audit.input_tokens,
-        output_tokens=audit.output_tokens,
-        latency_ms=audit.latency_ms,
-        llm_latency_ms=audit.llm_latency_ms,
-        cached=cached,
-    )
-
-
-@app.post("/audits", response_model=AuditDetail, status_code=201)
-async def create_audit(
-    body: AuditCreate,
-    request: Request,
-    response: Response,
-    refresh: bool = Query(False, description="Ignore the 24h cache and re-audit."),
-    session: AsyncSession = Depends(get_session),
-):
+@app.post("/audits")
+async def create_audit(body: AuditRequest, request: Request, refresh: bool = False) -> AuditOut:
     url = str(body.url)
-    normalized = cache.normalize_url(url)
 
-    # 1. Cache: same URL audited in the last 24h -> return the saved audit.
-    #    Cache hits don't count toward the rate limit; they cost nothing.
-    if not refresh:
-        cached_id = await cache.get_cached_audit_id(normalized)
-        if cached_id and (audit := await session.get(Audit, cached_id)):
-            response.status_code = 200
-            return _to_detail(audit, cached=True)
+    # Same URL audited in the last 24h? Return the saved audit (unless ?refresh=true).
+    if not refresh and (audit_id := await cache.get_cached_audit_id(url)):
+        async with Session() as session:
+            if audit := await session.get(Audit, uuid.UUID(audit_id)):
+                return to_out(audit, cached=True)
 
-    # 2. Rate limit: 10 fresh audits per hour per client IP.
-    client_ip = request.client.host if request.client else "unknown"
+    if await cache.is_rate_limited(request.client.host):
+        raise HTTPException(429, "Rate limit reached: 10 audits per hour. Try again later.")
+
+    start = time.perf_counter()
     try:
-        await cache.check_rate_limit(client_ip)
-    except cache.RateLimitExceeded as exc:
-        raise _error(
-            429,
-            "rate_limited",
-            f"Limit is {get_settings().rate_limit_per_hour} audits per hour. Try again later.",
-            headers={"Retry-After": str(exc.retry_after)},
-        )
-
-    started = time.perf_counter()
-
-    # 3. Fetch safely, 4. extract signals in code (in a thread: parsing is CPU-bound).
-    try:
-        page = await fetch_page(url)
+        final_url, html = await fetch_html(url)
+        signals = extract_signals(html, final_url)
+        report, tokens = await score_page(signals)
     except FetchError as exc:
-        raise _error(exc.status_code, exc.code, str(exc))
-    signals = await asyncio.to_thread(extract_signals, page.html, page.final_url, page.encoding)
-
-    # 5. Score with the LLM (validated + one retry inside score_page).
-    try:
-        result = await score_page(signals, page.final_url)
+        raise HTTPException(exc.status_code, str(exc))
     except LLMError as exc:
-        log.warning("LLM scoring failed for %s: %s", url, exc)
-        raise _error(exc.status_code, exc.code, str(exc))
+        raise HTTPException(502, str(exc))
 
-    # 6. Persist and cache.
     audit = Audit(
         url=url,
-        normalized_url=normalized,
-        final_url=page.final_url,
         signals=signals.model_dump(),
-        report=result.report.model_dump(),
-        overall_score=result.report.overall_score,
-        model=result.model,
-        input_tokens=result.input_tokens,
-        output_tokens=result.output_tokens,
-        latency_ms=int((time.perf_counter() - started) * 1000),
-        llm_latency_ms=result.latency_ms,
+        report=report.model_dump(),
+        model=settings.llm_model,
+        tokens_used=tokens,
+        latency_ms=int((time.perf_counter() - start) * 1000),
     )
-    session.add(audit)
-    await session.commit()
-    await session.refresh(audit)
-    await cache.cache_audit_id(normalized, audit.id)
-    return _to_detail(audit)
+    async with Session() as session:
+        session.add(audit)
+        await session.commit()
+        await session.refresh(audit)
+
+    await cache.cache_audit_id(url, str(audit.id))
+    return to_out(audit)
 
 
-@app.get("/audits", response_model=AuditList)
-async def list_audits(
-    limit: int = Query(20, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-    session: AsyncSession = Depends(get_session),
-):
-    rows = await session.scalars(
-        select(Audit).order_by(Audit.created_at.desc()).limit(limit).offset(offset)
-    )
-    total = await session.scalar(select(func.count()).select_from(Audit))
-    items = [
-        AuditSummary(
-            id=a.id,
-            url=a.url,
-            final_url=a.final_url,
-            overall_score=a.overall_score,
-            model=a.model,
-            created_at=a.created_at,
-        )
-        for a in rows
-    ]
-    return AuditList(items=items, total=total or 0)
+@app.get("/audits")
+async def list_audits() -> list[AuditListItem]:
+    async with Session() as session:
+        audits = await session.scalars(select(Audit).order_by(Audit.created_at.desc()).limit(50))
+        return [
+            AuditListItem(id=a.id, url=a.url, overall_score=a.report["overall_score"], created_at=a.created_at)
+            for a in audits
+        ]
 
 
-@app.get("/audits/{audit_id}", response_model=AuditDetail)
-async def get_audit(audit_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
-    audit = await session.get(Audit, audit_id)
+@app.get("/audits/{audit_id}")
+async def get_audit(audit_id: uuid.UUID) -> AuditOut:
+    async with Session() as session:
+        audit = await session.get(Audit, audit_id)
     if not audit:
-        raise _error(404, "not_found", "Audit not found.")
-    return _to_detail(audit)
-
-
-@app.get("/health")
-async def health(session: AsyncSession = Depends(get_session)):
-    try:
-        await session.execute(text("SELECT 1"))
-        db_ok = True
-    except Exception:
-        db_ok = False
-    redis_ok = await cache.ping()
-    status = 200 if db_ok else 503
-    return JSONResponse({"db": db_ok, "redis": redis_ok}, status_code=status)
+        raise HTTPException(404, "Audit not found.")
+    return to_out(audit)

@@ -1,4 +1,4 @@
-"""Pydantic models: extracted signals, the LLM report contract, and API responses."""
+"""Data shapes: extracted signals, the report the LLM must return, and API responses."""
 
 import uuid
 from datetime import datetime
@@ -6,107 +6,67 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, HttpUrl
 
-# ---------------------------------------------------------------- signals ---
-
-
-class Heading(BaseModel):
-    level: Literal[1, 2, 3]
-    text: str
-
-
-class FAQItem(BaseModel):
-    question: str
-    answer: str
-    source: Literal["jsonld", "details", "heading", "definition_list"]
-
-
-class LinkCounts(BaseModel):
-    internal: int
-    external: int
-
-
-class ImageAltCoverage(BaseModel):
-    total: int
-    with_alt: int  # non-empty alt text
-    empty_alt: int  # alt="" (valid for decorative images)
-    missing_alt: int  # no alt attribute at all
-    coverage: float  # with_alt / total, 1.0 when there are no images
-
 
 class Signals(BaseModel):
     title: str | None
     meta_description: str | None
     canonical: str | None
-    headings: list[Heading]
+    headings: list[str]  # e.g. "H2: Pricing"
     word_count: int
-    jsonld_types: list[str]
-    jsonld_invalid_blocks: int
-    faq: list[FAQItem]
-    links: LinkCounts
-    images: ImageAltCoverage
-    lang: str | None
-    # A short plain-text excerpt of the opening content. Not raw HTML: it lets the
-    # model judge answerability and write concrete before/after rewrites.
-    lead_excerpt: str
+    schema_types: list[str]  # schema.org JSON-LD @types
+    faq: list[str]  # questions found on the page
+    internal_links: int
+    external_links: int
+    images: int
+    images_with_alt: int
+    intro_text: str  # first ~1000 chars of body text, so the LLM can suggest rewrites
 
 
-# ------------------------------------------------------- LLM report contract ---
-
-SubScoreName = Literal[
-    "answerability", "content_structure", "entity_clarity", "schema_markup", "trust_signals"
-]
+Score = Field(ge=0, le=100)
 
 
 class SubScores(BaseModel):
-    answerability: int = Field(ge=0, le=100)
-    content_structure: int = Field(ge=0, le=100)
-    entity_clarity: int = Field(ge=0, le=100)
-    schema_markup: int = Field(ge=0, le=100)
-    trust_signals: int = Field(ge=0, le=100)
+    answerability: int = Score
+    content_structure: int = Score
+    entity_clarity: int = Score
+    schema_markup: int = Score
+    trust_signals: int = Score
 
 
 class Fix(BaseModel):
     priority: Literal["high", "medium", "low"]
-    category: SubScoreName
-    title: str = Field(min_length=3)
-    issue: str = Field(min_length=3, description="What is wrong and why it hurts AI citation.")
-    before: str = Field(min_length=1, description="The current text/markup, or '(missing)'.")
-    after: str = Field(min_length=1, description="A concrete rewritten version.")
+    issue: str
+    before: str
+    after: str
 
 
-class AuditReport(BaseModel):
-    overall_score: int = Field(ge=0, le=100)
+class Report(BaseModel):
+    """The strict JSON the LLM must return."""
+
+    overall_score: int = Score
     sub_scores: SubScores
-    summary: str = Field(min_length=10)
+    summary: str
     fixes: list[Fix] = Field(min_length=5, max_length=5)
 
 
-# ------------------------------------------------------------ API models ---
-
-
-class AuditCreate(BaseModel):
+class AuditRequest(BaseModel):
     url: HttpUrl
 
 
-class AuditSummary(BaseModel):
+class AuditOut(BaseModel):
     id: uuid.UUID
     url: str
-    final_url: str
-    overall_score: int
-    model: str
     created_at: datetime
-
-
-class AuditDetail(AuditSummary):
-    signals: Signals
-    report: AuditReport
-    input_tokens: int
-    output_tokens: int
+    model: str
+    tokens_used: int
     latency_ms: int
-    llm_latency_ms: int
+    signals: Signals
+    report: Report
     cached: bool = False
 
 
-class AuditList(BaseModel):
-    items: list[AuditSummary]
-    total: int
+class AuditListItem(BaseModel):
+    id: uuid.UUID
+    url: str
+    overall_score: int
+    created_at: datetime
