@@ -1,5 +1,3 @@
-"""Data shapes: extracted signals, the report the LLM must return, and API responses."""
-
 import uuid
 from datetime import datetime
 from typing import Literal
@@ -11,15 +9,15 @@ class Signals(BaseModel):
     title: str | None
     meta_description: str | None
     canonical: str | None
-    headings: list[str]  # e.g. "H2: Pricing"
+    headings: list[str]
     word_count: int
-    schema_types: list[str]  # schema.org JSON-LD @types
-    faq: list[str]  # questions found on the page
+    schema_types: list[str]
+    faq: list[str]
     internal_links: int
     external_links: int
     images: int
     images_with_alt: int
-    intro_text: str  # first ~1000 chars of body text, so the LLM can suggest rewrites
+    intro_text: str
 
 
 Score = Field(ge=0, le=100)
@@ -41,8 +39,6 @@ class Fix(BaseModel):
 
 
 class Report(BaseModel):
-    """The strict JSON the LLM must return."""
-
     overall_score: int = Score
     sub_scores: SubScores
     summary: str

@@ -1,5 +1,3 @@
-"""PostgreSQL: one table of audits."""
-
 import uuid
 from datetime import datetime
 
@@ -24,7 +22,7 @@ class Audit(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     url: Mapped[str]
     signals: Mapped[dict] = mapped_column(JSONB)
-    report: Mapped[dict] = mapped_column(JSONB)  # the validated LLM response
+    report: Mapped[dict] = mapped_column(JSONB)
     model: Mapped[str]
     tokens_used: Mapped[int]
     latency_ms: Mapped[int]

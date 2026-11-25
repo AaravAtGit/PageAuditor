@@ -12,9 +12,9 @@ from app.fetcher import FetchError, check_host_is_public, fetch_html
         "http://localhost:8000/",
         "http://10.0.0.5/",
         "http://192.168.1.1/",
-        "http://169.254.169.254/latest/meta-data/",  # cloud metadata endpoint
+        "http://169.254.169.254/latest/meta-data/",
         "http://[::1]/",
-        "http://[::ffff:127.0.0.1]/",  # IPv4 loopback disguised as IPv6
+        "http://[::ffff:127.0.0.1]/",
         "ftp://example.com/",
     ],
 )
@@ -29,8 +29,6 @@ async def test_allows_public_ip():
 
 @pytest.fixture
 def only_localhost_blocked(monkeypatch):
-    """Skip real DNS in these tests: pretend everything is public except 127.0.0.1."""
-
     async def fake_check(url):
         if "127.0.0.1" in url:
             raise FetchError("private")

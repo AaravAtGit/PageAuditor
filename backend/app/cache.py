@@ -1,5 +1,3 @@
-"""Redis: rate limiting per IP, and a 24h cache of URL -> audit id."""
-
 import redis.asyncio as redis
 
 from app.config import settings
@@ -8,7 +6,6 @@ r = redis.from_url(settings.redis_url, decode_responses=True)
 
 
 async def is_rate_limited(ip: str) -> bool:
-    """Allow `rate_limit_per_hour` audits per IP; the counter resets an hour after the first one."""
     key = f"rate:{ip}"
     count = await r.incr(key)
     if count == 1:

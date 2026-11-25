@@ -1,5 +1,3 @@
-"""Ask Gemini to score the extracted signals, and validate its answer with Pydantic."""
-
 from google import genai
 from google.genai import errors
 from pydantic import ValidationError
@@ -34,8 +32,7 @@ class LLMError(Exception):
 
 
 async def score_page(signals: Signals) -> tuple[Report, int]:
-    """Return (report, tokens_used). Retries once if the output fails validation."""
-    client = genai.Client()  # reads GEMINI_API_KEY from the environment
+    client = genai.Client()
     prompt = PROMPT.format(signals=signals.model_dump_json(indent=1))
     tokens = 0
 
@@ -44,7 +41,6 @@ async def score_page(signals: Signals) -> tuple[Report, int]:
             response = await client.aio.models.generate_content(
                 model=settings.llm_model,
                 contents=prompt,
-                # Structured output: Gemini must answer with JSON matching the Report model.
                 config={"response_mime_type": "application/json", "response_schema": Report},
             )
         except errors.APIError as exc:
@@ -54,6 +50,6 @@ async def score_page(signals: Signals) -> tuple[Report, int]:
         try:
             return Report.model_validate_json(response.text or ""), tokens
         except ValidationError:
-            continue  # invalid output: try once more
+            continue
 
     raise LLMError("The model returned invalid output twice. Please try again.")

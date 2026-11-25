@@ -1,5 +1,3 @@
-"""API: POST /audits, GET /audits, GET /audits/{id}."""
-
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -28,7 +26,7 @@ app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_me
 
 
 def to_out(audit: Audit, cached: bool = False) -> AuditOut:
-    out = AuditOut.model_validate(audit, from_attributes=True)  # DB row -> response model
+    out = AuditOut.model_validate(audit, from_attributes=True)
     out.cached = cached
     return out
 
@@ -37,7 +35,6 @@ def to_out(audit: Audit, cached: bool = False) -> AuditOut:
 async def create_audit(body: AuditRequest, request: Request, refresh: bool = False) -> AuditOut:
     url = str(body.url)
 
-    # Same URL audited in the last 24h? Return the saved audit (unless ?refresh=true).
     if not refresh and (audit_id := await cache.get_cached_audit_id(url)):
         async with Session() as session:
             if audit := await session.get(Audit, uuid.UUID(audit_id)):

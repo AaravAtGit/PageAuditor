@@ -17,7 +17,6 @@ VALID = {
 
 
 def fake_gemini(monkeypatch, *texts):
-    """Replace the Gemini client with one that returns `texts` in order."""
     calls = []
 
     async def generate_content(**kwargs):

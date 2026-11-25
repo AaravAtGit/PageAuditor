@@ -1,5 +1,3 @@
-"""Pull on-page signals out of the HTML with plain code (no LLM)."""
-
 import json
 from urllib.parse import urljoin, urlsplit
 
@@ -9,7 +7,6 @@ from app.schemas import Signals
 
 
 def _jsonld_types(data, found: list[str]) -> None:
-    """Walk a JSON-LD block and collect every @type, including nested ones."""
     if isinstance(data, list):
         for item in data:
             _jsonld_types(item, found)
@@ -35,7 +32,6 @@ def extract_signals(html: str, url: str) -> Signals:
     meta = soup.find("meta", attrs={"name": "description"})
     canonical = soup.find("link", rel="canonical")
 
-    # Links: same host (ignoring "www.") counts as internal.
     site = urlsplit(url).netloc.removeprefix("www.")
     internal = external = 0
     for a in soup.find_all("a", href=True):
@@ -49,12 +45,11 @@ def extract_signals(html: str, url: str) -> Signals:
     images = soup.find_all("img")
     images_with_alt = sum(1 for img in images if img.get("alt", "").strip())
 
-    # Remove non-visible content before reading text (count images first: some sit inside <noscript>).
+    # count images before this, some of them live inside <noscript>
     for tag in soup(["script", "style", "noscript"]):
         tag.decompose()
 
     headings = [f"{h.name.upper()}: {h.get_text(' ', strip=True)}" for h in soup.find_all(["h1", "h2", "h3"])]
-    # FAQ-style questions: headings or <summary> elements ending in "?"
     faq = [
         el.get_text(" ", strip=True)
         for el in soup.find_all(["h2", "h3", "h4", "summary", "dt"])

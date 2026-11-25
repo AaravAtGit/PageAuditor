@@ -1,5 +1,3 @@
-// Calls to the FastAPI backend. Types mirror backend/app/schemas.py.
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export type Fix = { priority: "high" | "medium" | "low"; issue: string; before: string; after: string };
@@ -26,7 +24,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(API_URL + path, { headers: { "Content-Type": "application/json" }, ...options });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    // Our API errors are {"detail": "message"}; FastAPI validation errors have a list instead.
     throw new Error(typeof body?.detail === "string" ? body.detail : "Request failed. Check the URL and try again.");
   }
   return res.json();

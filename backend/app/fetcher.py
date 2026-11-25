@@ -1,5 +1,3 @@
-"""Fetch a page safely: timeout, redirects, HTML only, no private/localhost IPs."""
-
 import asyncio
 import ipaddress
 import socket
@@ -17,7 +15,6 @@ class FetchError(Exception):
 
 
 async def check_host_is_public(url: str) -> None:
-    """Resolve the URL's host and refuse it if any of its IPs is private, loopback, etc."""
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https") or not parts.hostname:
         raise FetchError("Only http(s) URLs are supported.")
@@ -29,14 +26,13 @@ async def check_host_is_public(url: str) -> None:
 
     for info in infos:
         ip = ipaddress.ip_address(info[4][0])
-        # is_global is False for private, loopback, link-local (incl. 169.254.169.254) and reserved ranges.
         if not ip.is_global:
             raise FetchError(f"{parts.hostname} points to a private address ({ip}); refusing to fetch it.")
 
 
 async def fetch_html(url: str) -> tuple[str, str]:
-    """Return (final_url, html). Redirects are followed by hand so every hop is checked."""
     async with httpx.AsyncClient(timeout=10, headers={"User-Agent": "AEOPageAuditor/1.0"}) as client:
+        # follow redirects ourselves so every hop gets the IP check
         for _ in range(MAX_REDIRECTS + 1):
             await check_host_is_public(url)
             try:
