@@ -1,3 +1,5 @@
+# Every port binds to 127.0.0.1 only. Postgres and Redis are not published at all
+# (see docker-compose.dev.yml for running the backend outside Docker).
 services:
   postgres:
     image: postgres:17-alpine
@@ -5,8 +7,6 @@ services:
       POSTGRES_USER: aeo
       POSTGRES_PASSWORD: aeo
       POSTGRES_DB: aeo
-    ports:
-      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -16,8 +16,6 @@ services:
 
   redis:
     image: redis:8-alpine
-    ports:
-      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 3s
@@ -29,8 +27,11 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://aeo:aeo@postgres:5432/aeo
       REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: '["${PUBLIC_URL:-http://localhost:3000}"]'
+      # trust X-Forwarded-For from a reverse proxy, so the rate limit sees real client IPs
+      FORWARDED_ALLOW_IPS: "*"
     ports:
-      - "8000:8000"
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -39,9 +40,9 @@ services:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8000}
     ports:
-      - "3000:3000"
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
     depends_on:
       - backend
 
