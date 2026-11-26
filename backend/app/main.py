@@ -45,8 +45,8 @@ async def create_audit(body: AuditRequest, request: Request, refresh: bool = Fal
 
     start = time.perf_counter()
     try:
-        final_url, html = await fetch_html(url)
-        signals = extract_signals(html, final_url)
+        html = await fetch_html(url)
+        signals = extract_signals(html, url)
         report, tokens = await score_page(signals)
     except FetchError as exc:
         raise HTTPException(exc.status_code, str(exc))
