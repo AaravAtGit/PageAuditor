@@ -89,7 +89,9 @@ function Report({ audit }: { audit: Audit }) {
   return (
     <section className="space-y-6 rounded border border-neutral-200 p-6 dark:border-neutral-800">
       <div>
-        <p className="truncate text-sm text-neutral-500">{audit.url}</p>
+        <p className="truncate text-sm text-neutral-500">
+          {audit.url} · {audit.tokens_used} tokens
+        </p>
         <p className="mt-2 text-5xl font-bold">
           {report.overall_score}
           <span className="text-xl text-neutral-400">/100</span>

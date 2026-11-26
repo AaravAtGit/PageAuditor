@@ -5,6 +5,7 @@ export type Fix = { priority: "high" | "medium" | "low"; issue: string; before: 
 export type Audit = {
   id: string;
   url: string;
+  tokens_used: number;
   report: {
     overall_score: number;
     sub_scores: Record<string, number>;
