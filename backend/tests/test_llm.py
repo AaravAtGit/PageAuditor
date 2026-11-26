@@ -23,7 +23,7 @@ def fake_gemini(monkeypatch, *texts):
         return SimpleNamespace(text=texts[len(calls) - 1], usage_metadata=SimpleNamespace(total_token_count=100))
 
     client = SimpleNamespace(aio=SimpleNamespace(models=SimpleNamespace(generate_content=generate_content)))
-    monkeypatch.setattr(llm.genai, "Client", lambda: client)
+    monkeypatch.setattr(llm.genai, "Client", lambda api_key: client)
     return calls
 
 

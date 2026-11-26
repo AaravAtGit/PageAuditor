@@ -2,6 +2,7 @@ from google import genai
 from google.genai import errors
 from pydantic import ValidationError
 
+from app.config import settings
 from app.schemas import Report, Signals
 
 MODEL = "gemini-3.5-flash-lite"
@@ -33,7 +34,7 @@ class LLMError(Exception):
 
 
 async def score_page(signals: Signals) -> tuple[Report, int]:
-    client = genai.Client()
+    client = genai.Client(api_key=settings.gemini_api_key)
     prompt = PROMPT.format(signals=signals.model_dump_json(indent=1))
     tokens = 0
 
