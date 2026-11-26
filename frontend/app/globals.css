@@ -9,6 +9,12 @@
   --color-muted: #56615b;
   --color-accent: #0e6b63;
   --color-danger: #b3261e;
+  --color-before: #fcebe8;
+  --color-before-line: #f0c3bc;
+  --color-before-ink: #a3261b;
+  --color-after: #e6f3e2;
+  --color-after-line: #b6d9ad;
+  --color-after-ink: #276321;
   --font-sans: var(--font-archivo), system-ui, sans-serif;
 }
 

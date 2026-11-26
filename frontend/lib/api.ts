@@ -42,8 +42,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-export const createAudit = (url: string) =>
-  request<Audit>("/audits", { method: "POST", body: JSON.stringify({ url }) });
+export const createAudit = (url: string, refresh: boolean) =>
+  request<Audit>(`/audits${refresh ? "?refresh=true" : ""}`, { method: "POST", body: JSON.stringify({ url }) });
 
 export const getAudit = (id: string) => request<Audit>(`/audits/${id}`);
 

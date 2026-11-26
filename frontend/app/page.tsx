@@ -20,6 +20,8 @@ export default function Home() {
   const [compare, setCompare] = useState(false);
   const [url, setUrl] = useState("");
   const [competitorUrl, setCompetitorUrl] = useState("");
+  const [refresh, setRefresh] = useState(false);
+  const [showHistory, setShowHistory] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [view, setView] = useState<View>(null);
@@ -47,13 +49,13 @@ export default function Home() {
     if (compare) {
       run(async () => {
         const [client, competitor] = await Promise.all([
-          createAudit(url).catch((e) => Promise.reject(new Error(`Client URL: ${e.message}`))),
-          createAudit(competitorUrl).catch((e) => Promise.reject(new Error(`Competitor URL: ${e.message}`))),
+          createAudit(url, refresh).catch((e) => Promise.reject(new Error(`Client URL: ${e.message}`))),
+          createAudit(competitorUrl, refresh).catch((e) => Promise.reject(new Error(`Competitor URL: ${e.message}`))),
         ]);
         return { kind: "compare", client, competitor };
       });
     } else {
-      run(async () => ({ kind: "single", audit: await createAudit(url) }));
+      run(async () => ({ kind: "single", audit: await createAudit(url, refresh) }));
     }
   }
 
@@ -78,7 +80,19 @@ export default function Home() {
           >
             {loading ? "Auditing…" : compare ? "Compare" : "Audit"}
           </button>
+          <label className="flex basis-full items-center gap-2 text-sm text-[#c5ccc8]">
+            <input type="checkbox" checked={refresh} onChange={(e) => setRefresh(e.target.checked)} className="accent-accent" />
+            Re-audit even if it was checked in the last 24 hours
+          </label>
         </form>
+
+        <button
+          aria-pressed={showHistory}
+          onClick={() => setShowHistory(!showHistory)}
+          className="h-10 border border-[#3a4640] px-4 text-sm hover:bg-ink-soft"
+        >
+          {showHistory ? "Hide history" : "Show history"}
+        </button>
 
         <div className="flex border border-[#3a4640]" role="group" aria-label="Mode">
           {["Single", "Compare"].map((label) => {
@@ -97,8 +111,8 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="grid flex-1 md:grid-cols-[280px_1fr]">
-        <aside className="order-2 border-t border-rule md:order-1 md:border-t-0 md:border-r">
+      <div className={`grid flex-1 ${showHistory ? "md:grid-cols-[280px_1fr]" : ""}`}>
+        <aside hidden={!showHistory} className="order-2 border-t border-rule md:order-1 md:border-t-0 md:border-r">
           <h2 className="px-6 pt-5 pb-3 text-xs font-semibold tracking-widest text-muted uppercase">Recent audits</h2>
           {history.length === 0 && (
             <p className="px-6 text-sm text-muted">Every audit you run is saved here so you can reopen it.</p>
@@ -256,8 +270,8 @@ function Fixes({ fixes, title }: { fixes: Fix[]; title: string }) {
         <div key={i} className="grid gap-x-6 gap-y-3 border-b border-rule py-5 md:grid-cols-[88px_1fr_1fr]">
           <Priority value={fix.priority} />
           <p className="font-semibold md:col-span-2">{fix.issue}</p>
-          <Rewrite label="Before" text={fix.before} className="bg-sunk md:col-start-2" />
-          <Rewrite label="After" text={fix.after} className="border border-rule bg-white" />
+          <Rewrite label="Before" text={fix.before} className="border-before-line bg-before text-before-ink md:col-start-2" />
+          <Rewrite label="After" text={fix.after} className="border-after-line bg-after text-after-ink" />
         </div>
       ))}
     </section>
@@ -273,9 +287,9 @@ function Priority({ value }: { value: Fix["priority"] }) {
 
 function Rewrite({ label, text, className }: { label: string; text: string; className: string }) {
   return (
-    <div className={`p-3 text-sm ${className}`}>
-      <p className="mb-1 text-xs font-semibold tracking-widest text-muted uppercase">{label}</p>
-      <p className="break-words whitespace-pre-wrap">{text}</p>
+    <div className={`border p-3 text-sm ${className}`}>
+      <p className="mb-1 text-xs font-semibold tracking-widest uppercase">{label}</p>
+      <p className="break-words whitespace-pre-wrap text-ink">{text}</p>
     </div>
   );
 }
