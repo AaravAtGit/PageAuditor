@@ -84,13 +84,24 @@ export default function Home() {
 }
 
 function Report({ audit }: { audit: Audit }) {
-  const { report } = audit;
+  const { report, signals } = audit;
+  const signalRows = [
+    ["Title", signals.title ?? "(missing)"],
+    ["Meta description", signals.meta_description ?? "(missing)"],
+    ["Canonical", signals.canonical ?? "(missing)"],
+    ["Word count", signals.word_count],
+    ["Schema types", signals.schema_types.join(", ") || "(none)"],
+    ["FAQ questions", signals.faq.length],
+    ["Links", `${signals.internal_links} internal, ${signals.external_links} external`],
+    ["Images with alt text", `${signals.images_with_alt} of ${signals.images}`],
+  ];
 
   return (
     <section className="space-y-6 rounded border border-neutral-200 p-6 dark:border-neutral-800">
       <div>
         <p className="truncate text-sm text-neutral-500">
-          {audit.url} · {audit.tokens_used} tokens
+          {audit.url} · {new Date(audit.created_at).toLocaleString()} · {audit.model} · {audit.tokens_used} tokens ·{" "}
+          {(audit.latency_ms / 1000).toFixed(1)}s
         </p>
         <p className="mt-2 text-5xl font-bold">
           {report.overall_score}
@@ -110,6 +121,26 @@ function Report({ audit }: { audit: Audit }) {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="text-lg font-semibold">Page signals</h3>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+          {signalRows.map(([name, value]) => (
+            <div key={name} className="contents">
+              <dt className="text-neutral-500">{name}</dt>
+              <dd className="break-words">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <details className="text-sm">
+          <summary className="cursor-pointer text-neutral-500">Heading outline ({signals.headings.length})</summary>
+          <ul className="mt-1 space-y-0.5">
+            {signals.headings.map((h, i) => (
+              <li key={i}>{h}</li>
+            ))}
+          </ul>
+        </details>
       </div>
 
       <div className="space-y-4">

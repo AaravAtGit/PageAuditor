@@ -2,10 +2,28 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export type Fix = { priority: "high" | "medium" | "low"; issue: string; before: string; after: string };
 
+export type Signals = {
+  title: string | null;
+  meta_description: string | null;
+  canonical: string | null;
+  headings: string[];
+  word_count: number;
+  schema_types: string[];
+  faq: string[];
+  internal_links: number;
+  external_links: number;
+  images: number;
+  images_with_alt: number;
+};
+
 export type Audit = {
   id: string;
   url: string;
+  created_at: string;
+  model: string;
   tokens_used: number;
+  latency_ms: number;
+  signals: Signals;
   report: {
     overall_score: number;
     sub_scores: Record<string, number>;
