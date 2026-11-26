@@ -38,3 +38,8 @@ def test_extract_signals():
 def test_empty_page():
     s = extract_signals("<html></html>", "https://example.com/")
     assert s.title is None and s.word_count == 0
+
+
+def test_images_inside_noscript():
+    s = extract_signals('<noscript><img src="a.png" alt="A"></noscript>', "https://example.com/")
+    assert (s.images, s.images_with_alt) == (1, 1)
