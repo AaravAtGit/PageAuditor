@@ -86,8 +86,8 @@ async def get_cached_audit(url: str) -> Audit | None:
 async def run_audit(url: str) -> Audit:
     start = time.perf_counter()
     try:
-        html = await fetch_html(url)
-        signals = extract_signals(html, url)
+        final_url, html = await fetch_html(url)
+        signals = extract_signals(html, final_url)
         report, tokens = await score_page(signals)
     except FetchError as exc:
         raise HTTPException(exc.status_code, str(exc))
