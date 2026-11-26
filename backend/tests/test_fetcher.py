@@ -34,16 +34,23 @@ def fake_dns(monkeypatch):
 @respx.mock
 async def test_connects_to_checked_ip(fake_dns):
     route = respx.get("https://93.184.216.34/page").respond(200, headers={"content-type": "text/html"}, text="ok")
-    assert await fetch_html("https://example.com/page") == "ok"
+    assert await fetch_html("https://example.com/page") == ("https://example.com/page", "ok")
     request = route.calls.last.request
     assert request.headers["host"] == "example.com"
     assert request.extensions["sni_hostname"] == "example.com"
 
 
 @respx.mock
-async def test_does_not_follow_redirects(fake_dns):
+async def test_follows_redirects(fake_dns):
+    respx.get("https://93.184.216.34/old").respond(301, headers={"location": "/new"})
+    respx.get("https://93.184.216.34/new").respond(200, headers={"content-type": "text/html"}, text="<h1>hi</h1>")
+    assert await fetch_html("https://example.com/old") == ("https://example.com/new", "<h1>hi</h1>")
+
+
+@respx.mock
+async def test_blocks_redirect_to_private_ip(fake_dns):
     respx.get("https://93.184.216.34/").respond(302, headers={"location": "http://127.0.0.1/admin"})
-    with pytest.raises(FetchError, match="redirects to http://127.0.0.1/admin"):
+    with pytest.raises(FetchError):
         await fetch_html("https://example.com/")
 
 
