@@ -5,9 +5,6 @@ from urllib.parse import urljoin, urlsplit
 
 import httpx
 
-MAX_REDIRECTS = 5
-
-
 class FetchError(Exception):
     def __init__(self, message: str, status_code: int = 422):
         super().__init__(message)
@@ -26,31 +23,27 @@ async def resolve_public_ip(hostname: str) -> str:
     return str(ip)
 
 
-async def fetch_html(url: str) -> tuple[str, str]:
-    async with httpx.AsyncClient(timeout=10, headers={"User-Agent": "AEOPageAuditor/1.0"}) as client:
-        # follow redirects ourselves so every hop gets the IP check
-        for _ in range(MAX_REDIRECTS + 1):
-            parts = urlsplit(url)
-            if parts.scheme not in ("http", "https") or not parts.hostname:
-                raise FetchError("Only http(s) URLs are supported.")
+async def fetch_html(url: str) -> str:
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        raise FetchError("Only http(s) URLs are supported.")
 
-            # connect to the IP we checked, not the hostname, so DNS can't switch it on us
-            ip = await resolve_public_ip(parts.hostname)
-            pinned = parts._replace(netloc=f"{ip}:{parts.port}" if parts.port else ip).geturl()
-            try:
-                response = await client.get(
-                    pinned, headers={"Host": parts.netloc}, extensions={"sni_hostname": parts.hostname}
-                )
-            except httpx.HTTPError as exc:
-                raise FetchError(f"Could not fetch the page ({exc.__class__.__name__}).", 502)
+    # connect to the IP we checked, not the hostname, so DNS can't switch it on us
+    ip = await resolve_public_ip(parts.hostname)
+    pinned = parts._replace(netloc=f"{ip}:{parts.port}" if parts.port else ip).geturl()
+    try:
+        async with httpx.AsyncClient(timeout=10, headers={"User-Agent": "AEOPageAuditor/1.0"}) as client:
+            response = await client.get(
+                pinned, headers={"Host": parts.netloc}, extensions={"sni_hostname": parts.hostname}
+            )
+    except httpx.HTTPError as exc:
+        raise FetchError(f"Could not fetch the page ({exc.__class__.__name__}).", 502)
 
-            if response.is_redirect:
-                url = urljoin(url, response.headers["location"])
-                continue
-            if response.status_code >= 400:
-                raise FetchError(f"The page returned HTTP {response.status_code}.", 502)
-            if "html" not in response.headers.get("content-type", ""):
-                raise FetchError("That URL is not an HTML page.", 415)
-            return url, response.text
-
-    raise FetchError("Too many redirects.", 502)
+    if response.is_redirect:
+        location = urljoin(url, response.headers["location"])
+        raise FetchError(f"That URL redirects to {location}. Audit that URL instead.")
+    if response.status_code >= 400:
+        raise FetchError(f"The page returned HTTP {response.status_code}.", 502)
+    if "html" not in response.headers.get("content-type", ""):
+        raise FetchError("That URL is not an HTML page.", 415)
+    return response.text
