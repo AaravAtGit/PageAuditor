@@ -11,7 +11,6 @@ FIX = {"priority": "high", "issue": "No FAQ schema.", "before": "(missing)", "af
 VALID = {
     "overall_score": 62,
     "sub_scores": {"answerability": 60, "content_structure": 70, "entity_clarity": 65, "schema_markup": 40, "trust_signals": 70},
-    "summary": "Decent page, weak schema.",
     "fixes": [FIX] * 5,
 }
 

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 
 class Signals(BaseModel):
@@ -41,7 +41,6 @@ class Fix(BaseModel):
 class Report(BaseModel):
     overall_score: int = Score
     sub_scores: SubScores
-    summary: str
     fixes: list[Fix] = Field(min_length=5, max_length=5)
 
 
@@ -50,6 +49,8 @@ class AuditRequest(BaseModel):
 
 
 class AuditOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     url: str
     created_at: datetime
@@ -58,7 +59,6 @@ class AuditOut(BaseModel):
     latency_ms: int
     signals: Signals
     report: Report
-    cached: bool = False
 
 
 class AuditListItem(BaseModel):

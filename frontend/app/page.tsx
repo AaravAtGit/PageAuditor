@@ -5,7 +5,6 @@ import { type Audit, type AuditListItem, createAudit, getAudit, listAudits } fro
 
 export default function Home() {
   const [url, setUrl] = useState("");
-  const [refresh, setRefresh] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [audit, setAudit] = useState<Audit | null>(null);
@@ -30,8 +29,7 @@ export default function Home() {
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const fullUrl = url.startsWith("http") ? url : `https://${url}`;
-    run(() => createAudit(fullUrl, refresh));
+    run(() => createAudit(url));
   }
 
   return (
@@ -46,6 +44,8 @@ export default function Home() {
       <form onSubmit={onSubmit} className="space-y-2">
         <div className="flex gap-2">
           <input
+            type="url"
+            required
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://example.com/page"
@@ -58,10 +58,6 @@ export default function Home() {
             {loading ? "Auditing…" : "Audit"}
           </button>
         </div>
-        <label className="flex items-center gap-2 text-sm text-neutral-500">
-          <input type="checkbox" checked={refresh} onChange={(e) => setRefresh(e.target.checked)} />
-          Re-audit even if checked in the last 24 hours
-        </label>
         {loading && <p className="text-sm">Fetching, extracting and scoring… this can take up to a minute.</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
       </form>
@@ -87,24 +83,17 @@ export default function Home() {
   );
 }
 
-const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
-
 function Report({ audit }: { audit: Audit }) {
   const { report } = audit;
-  const fixes = [...report.fixes].sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
 
   return (
     <section className="space-y-6 rounded border border-neutral-200 p-6 dark:border-neutral-800">
       <div>
-        <p className="truncate text-sm text-neutral-500">
-          {audit.url} · {audit.model} · {audit.tokens_used} tokens · {(audit.latency_ms / 1000).toFixed(1)}s
-          {audit.cached && " · cached"}
-        </p>
+        <p className="truncate text-sm text-neutral-500">{audit.url}</p>
         <p className="mt-2 text-5xl font-bold">
           {report.overall_score}
           <span className="text-xl text-neutral-400">/100</span>
         </p>
-        <p className="mt-2">{report.summary}</p>
       </div>
 
       <div className="space-y-2">
@@ -123,7 +112,7 @@ function Report({ audit }: { audit: Audit }) {
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Top fixes</h3>
-        {fixes.map((fix, i) => (
+        {report.fixes.map((fix, i) => (
           <div key={i} className="space-y-2">
             <p>
               <span className="mr-2 rounded bg-neutral-200 px-2 py-0.5 text-xs uppercase dark:bg-neutral-800">
