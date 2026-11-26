@@ -10,7 +10,7 @@ async def is_rate_limited(ip: str) -> bool:
     count = await r.incr(key)
     if count == 1:
         await r.expire(key, 3600)
-    return count > settings.rate_limit_per_hour
+    return count > 10
 
 
 async def get_cached_audit_id(url: str) -> str | None:
@@ -18,4 +18,4 @@ async def get_cached_audit_id(url: str) -> str | None:
 
 
 async def cache_audit_id(url: str, audit_id: str) -> None:
-    await r.set(f"audit:{url}", audit_id, ex=settings.cache_ttl_seconds)
+    await r.set(f"audit:{url}", audit_id, ex=24 * 60 * 60)

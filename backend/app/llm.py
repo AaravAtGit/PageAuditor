@@ -2,8 +2,9 @@ from google import genai
 from google.genai import errors
 from pydantic import ValidationError
 
-from app.config import settings
 from app.schemas import Report, Signals
+
+MODEL = "gemini-3.5-flash-lite"
 
 PROMPT = """You are an Answer Engine Optimization (AEO) auditor. Judge how likely this web page
 is to be picked up and cited by AI search engines (ChatGPT, Perplexity, Google AI Overviews).
@@ -39,7 +40,7 @@ async def score_page(signals: Signals) -> tuple[Report, int]:
     for _attempt in range(2):
         try:
             response = await client.aio.models.generate_content(
-                model=settings.llm_model,
+                model=MODEL,
                 contents=prompt,
                 config={"response_mime_type": "application/json", "response_schema": Report},
             )
