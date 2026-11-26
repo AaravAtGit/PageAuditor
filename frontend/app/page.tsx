@@ -69,7 +69,18 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex flex-wrap items-center gap-x-6 gap-y-3 bg-ink px-6 py-3 text-paper">
-        <h1 className="font-extrabold tracking-wide md:w-56">AEO Page Auditor</h1>
+        <div className="flex items-center gap-2 md:w-56">
+          <button
+            aria-label={showHistory ? "Close recent audits" : "Open recent audits"}
+            title={showHistory ? "Close recent audits" : "Open recent audits"}
+            aria-pressed={showHistory}
+            onClick={() => setShowHistory(!showHistory)}
+            className="-ml-2 grid size-10 place-items-center hover:bg-ink-soft"
+          >
+            <SidebarIcon />
+          </button>
+          <h1 className="font-extrabold tracking-wide">AEO Page Auditor</h1>
+        </div>
 
         <form onSubmit={onSubmit} className="flex flex-1 basis-80 flex-wrap gap-2">
           <UrlInput label={compare ? "Client page URL" : "Page URL"} value={url} onChange={setUrl} />
@@ -85,14 +96,6 @@ export default function Home() {
             Re-audit even if it was checked in the last 24 hours
           </label>
         </form>
-
-        <button
-          aria-pressed={showHistory}
-          onClick={() => setShowHistory(!showHistory)}
-          className="h-10 border border-[#3a4640] px-4 text-sm hover:bg-ink-soft"
-        >
-          {showHistory ? "Hide history" : "Show history"}
-        </button>
 
         <div className="flex border border-[#3a4640]" role="group" aria-label="Mode">
           {["Single", "Compare"].map((label) => {
@@ -172,6 +175,15 @@ function UrlInput({ label, value, onChange }: { label: string; value: string; on
       aria-label={label}
       className="h-10 min-w-0 flex-1 basis-60 border border-ink-soft bg-ink-soft px-3 text-paper placeholder:text-[#a3ada7]"
     />
+  );
+}
+
+function SidebarIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" />
+      <path d="M9 4v16" />
+    </svg>
   );
 }
 
