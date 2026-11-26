@@ -70,15 +70,16 @@ export default function Home() {
     <div className="flex min-h-screen flex-col">
       <header className="flex flex-wrap items-center gap-x-6 gap-y-3 bg-ink px-6 py-3 text-paper">
         <div className="flex items-center gap-2 md:w-56">
-          <button
-            aria-label={showHistory ? "Close recent audits" : "Open recent audits"}
-            title={showHistory ? "Close recent audits" : "Open recent audits"}
-            aria-pressed={showHistory}
-            onClick={() => setShowHistory(!showHistory)}
-            className="-ml-2 grid size-10 place-items-center hover:bg-ink-soft"
-          >
-            <SidebarIcon />
-          </button>
+          {!showHistory && (
+            <button
+              aria-label="Open recent audits"
+              title="Open recent audits"
+              onClick={() => setShowHistory(true)}
+              className="-ml-2 grid size-10 place-items-center hover:bg-ink-soft"
+            >
+              <SidebarIcon />
+            </button>
+          )}
           <h1 className="font-extrabold tracking-wide">AEO Page Auditor</h1>
         </div>
 
@@ -116,7 +117,17 @@ export default function Home() {
 
       <div className={`grid flex-1 ${showHistory ? "md:grid-cols-[280px_1fr]" : ""}`}>
         <aside hidden={!showHistory} className="order-2 border-t border-rule md:order-1 md:border-t-0 md:border-r">
-          <h2 className="px-6 pt-5 pb-3 text-xs font-semibold tracking-widest text-muted uppercase">Recent audits</h2>
+          <div className="flex items-center justify-between pt-3 pr-3 pb-1 pl-6">
+            <h2 className="text-xs font-semibold tracking-widest text-muted uppercase">Recent audits</h2>
+            <button
+              aria-label="Close recent audits"
+              title="Close recent audits"
+              onClick={() => setShowHistory(false)}
+              className="grid size-10 place-items-center text-muted hover:bg-sunk hover:text-ink"
+            >
+              <SidebarIcon />
+            </button>
+          </div>
           {history.length === 0 && (
             <p className="px-6 text-sm text-muted">Every audit you run is saved here so you can reopen it.</p>
           )}
