@@ -2,6 +2,7 @@
 # (see docker-compose.dev.yml for running the backend outside Docker).
 services:
   postgres:
+    restart: unless-stopped
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: aeo
@@ -15,6 +16,7 @@ services:
       retries: 20
 
   redis:
+    restart: unless-stopped
     image: redis:8-alpine
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -22,6 +24,7 @@ services:
       retries: 20
 
   backend:
+    restart: unless-stopped
     build: ./backend
     env_file: backend/.env
     environment:
@@ -30,6 +33,8 @@ services:
       CORS_ORIGINS: '["${PUBLIC_URL:-http://localhost:3000}"]'
       # trust X-Forwarded-For from a reverse proxy, so the rate limit sees real client IPs
       FORWARDED_ALLOW_IPS: "*"
+      # set when a proxy serves the API under a prefix (e.g. /api), so /docs still works
+      UVICORN_ROOT_PATH: ${API_ROOT_PATH:-}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     depends_on:
@@ -37,6 +42,7 @@ services:
       redis: { condition: service_healthy }
 
   frontend:
+    restart: unless-stopped
     build:
       context: ./frontend
       args:
