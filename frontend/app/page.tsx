@@ -364,7 +364,7 @@ function Compare({ client, competitor }: { client: Audit; competitor: Audit }) {
 
   return (
     <article>
-      <div className={`${ROW} items-end`}>
+      <div className="grid grid-cols-2 items-end gap-x-6 md:grid-cols-[1fr_auto_1fr]">
         <Side label="Client" audit={client} className="order-1 pr-3 text-right" />
         <p className="order-3 col-span-2 pt-6 text-center md:order-2 md:col-span-1 md:pt-0">
           <span className="block text-xs font-semibold tracking-widest text-muted uppercase">Gap</span>
