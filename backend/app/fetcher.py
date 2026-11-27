@@ -56,3 +56,4 @@ async def fetch_html(url: str) -> tuple[str, str]:
     if "html" not in response.headers.get("content-type", ""):
         raise FetchError("That URL is not an HTML page.", 415)
     return url, response.text
+
